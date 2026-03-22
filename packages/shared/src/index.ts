@@ -30,6 +30,37 @@ export interface PlcStatus {
   lastSyncAt: string | null;
 }
 
+export interface SystemSummary {
+  appName: string;
+  apiVersion: string;
+  serverTime: string;
+  plc: PlcStatus;
+  database: {
+    path: string;
+    tagCount: number;
+    auditCount: number;
+  };
+}
+
+export type RealtimeMessage =
+  | {
+      type: 'hello';
+      summary: SystemSummary;
+      tags: TagSnapshot[];
+    }
+  | {
+      type: 'summary';
+      summary: SystemSummary;
+    }
+  | {
+      type: 'tags';
+      tags: TagSnapshot[];
+    }
+  | {
+      type: 'error';
+      message: string;
+    };
+
 export const tagValueSchema = z.union([z.boolean(), z.number(), z.string()]);
 
 export const writeTagBodySchema = z.object({

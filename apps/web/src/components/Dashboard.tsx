@@ -4,7 +4,7 @@ import {
   AreaChart, Area, 
   PieChart, Pie, Cell,
   ResponsiveContainer, 
-  Tooltip, XAxis, YAxis 
+  Tooltip
 } from 'recharts';
 import Slider from './ui/Slider';
 import Stepper from './ui/Stepper';

@@ -1,5 +1,6 @@
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import websocket from '@fastify/websocket';
 import Fastify from 'fastify';
 import { config as loadEnv } from 'dotenv';
 import { existsSync } from 'node:fs';
@@ -8,7 +9,14 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { createDatabase } from '@helm/db';
 import { PlcRuntime } from '@helm/plc-runtime';
-import { DEFAULT_TAG_DEFINITIONS, type TagValue, writeTagBodySchema } from '@helm/shared';
+import {
+  DEFAULT_TAG_DEFINITIONS,
+  type RealtimeMessage,
+  type SystemSummary,
+  type TagSnapshot,
+  type TagValue,
+  writeTagBodySchema,
+} from '@helm/shared';
 
 loadEnv();
 
@@ -57,24 +65,11 @@ const plcRuntime = new PlcRuntime({
 await plcRuntime.start();
 
 const server = Fastify({ logger: true });
+const wsClients = new Set<WebSocket>();
 
-await server.register(cors, { origin: true });
-
-if (existsSync(webDistPath)) {
-  await server.register(fastifyStatic, {
-    root: webDistPath,
-    prefix: '/',
-  });
-}
-
-server.get('/api/health', async () => ({
-  ok: true,
-  mode: env.PLC_MODE,
-  now: new Date().toISOString(),
-}));
-
-server.get('/api/system/summary', async () => {
+const buildSummary = (): SystemSummary => {
   const dbSummary = database.getSummary();
+
   return {
     appName: 'Helm HMI Platform',
     apiVersion: '0.1.0',
@@ -86,7 +81,75 @@ server.get('/api/system/summary', async () => {
       auditCount: dbSummary.auditCount,
     },
   };
+};
+
+const sendMessage = (socket: WebSocket, message: RealtimeMessage) => {
+  if (socket.readyState !== socket.OPEN) {
+    return;
+  }
+
+  socket.send(JSON.stringify(message));
+};
+
+const broadcast = (message: RealtimeMessage) => {
+  for (const socket of wsClients) {
+    sendMessage(socket, message);
+  }
+};
+
+const persistTags = (tags: TagSnapshot[]) => {
+  for (const tag of tags) {
+    database.upsertTagSnapshot(tag);
+  }
+};
+
+const publishSnapshot = (tags: TagSnapshot[]) => {
+  broadcast({
+    type: 'tags',
+    tags,
+  });
+
+  broadcast({
+    type: 'summary',
+    summary: buildSummary(),
+  });
+};
+
+await server.register(cors, { origin: true });
+await server.register(websocket);
+
+if (existsSync(webDistPath)) {
+  await server.register(fastifyStatic, {
+    root: webDistPath,
+    prefix: '/',
+  });
+}
+
+server.get('/ws', { websocket: true }, (socket) => {
+  wsClients.add(socket);
+
+  sendMessage(socket, {
+    type: 'hello',
+    summary: buildSummary(),
+    tags: plcRuntime.listTags(),
+  });
+
+  socket.onclose = () => {
+    wsClients.delete(socket);
+  };
+
+  socket.onerror = () => {
+    wsClients.delete(socket);
+  };
 });
+
+server.get('/api/health', async () => ({
+  ok: true,
+  mode: env.PLC_MODE,
+  now: new Date().toISOString(),
+}));
+
+server.get('/api/system/summary', async () => buildSummary());
 
 server.get('/api/tags', async (request) => {
   const querySchema = z.object({
@@ -95,9 +158,7 @@ server.get('/api/tags', async (request) => {
   const query = querySchema.parse(request.query);
   const tags = query.refresh ? await plcRuntime.readAll() : plcRuntime.listTags();
 
-  for (const tag of tags) {
-    database.upsertTagSnapshot(tag);
-  }
+  persistTags(tags);
 
   return { items: tags };
 });
@@ -140,11 +201,15 @@ server.post('/api/tags/:name/write', async (request, reply) => {
     result: 'success',
   });
 
+  publishSnapshot(plcRuntime.listTags());
   return result;
 });
 
 server.post('/api/plc/reconnect', async () => {
   await plcRuntime.reconnect();
+  const tags = await plcRuntime.readAll();
+  persistTags(tags);
+  publishSnapshot(tags);
   return plcRuntime.getStatus();
 });
 
@@ -161,16 +226,23 @@ if (existsSync(webDistPath)) {
 const poller = setInterval(async () => {
   try {
     const tags = await plcRuntime.readAll();
-    for (const tag of tags) {
-      database.upsertTagSnapshot(tag);
-    }
+    persistTags(tags);
+    publishSnapshot(tags);
   } catch (error) {
     server.log.error(error);
+    broadcast({
+      type: 'error',
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 }, env.PLC_POLL_INTERVAL_MS);
 
 const shutdown = async () => {
   clearInterval(poller);
+  for (const socket of wsClients) {
+    socket.close();
+  }
+  wsClients.clear();
   await plcRuntime.stop();
   await server.close();
   database.close();
