@@ -16,13 +16,45 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      includeAssets: ['apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Flyme Auto Dashboard',
-        short_name: 'Dashboard',
-        description: 'React + Tailwind Dashboard PWA',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'standalone'
+        id: '/',
+        name: 'Helm HMI Platform',
+        short_name: 'Helm HMI',
+        description: 'Industrial HMI for Keyence PLC control and monitoring.',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
+        display: 'standalone',
+        display_override: ['standalone', 'fullscreen', 'minimal-ui'],
+        orientation: 'landscape',
+        start_url: '.',
+        scope: '/',
+        lang: 'zh-CN',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg}']
+      },
+      devOptions: {
+        enabled: true
       }
     })
   ]
