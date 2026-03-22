@@ -1,0 +1,19 @@
+{
+  "name": "helm-hmi-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@11.6.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tooling/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:web": "npm --workspace apps/web run dev",
+    "build:api": "npm --workspace apps/api run build",
+    "build:web": "npm --workspace apps/web run build",
+    "build": "npm run build:api && npm run build:web",
+    "start": "npm --workspace apps/api run start"
+  }
+}

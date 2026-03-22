@@ -1,0 +1,14 @@
+{
+  "name": "@helm/plc-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@helm/shared": "file:../shared",
+    "node-keyence-hostlink": "^1.1.0"
+  }
+}
+
