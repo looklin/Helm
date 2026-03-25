@@ -67,3 +67,8 @@ Helm/
 - `packages/plc-runtime`：默认内置 mock，支持 `node-keyence-hostlink`。
 - `packages/db`：SQLite 自动建表，保存点位当前值和审计日志。
 - `apps/web`：保留现有 Dashboard UI，并接入 API 状态和示例读写。
+
+## 联系方式
+
+- 邮箱：[linnanly@gmail.com](mailto:linnanly@gmail.com)
+- 微信：linnan-wx
