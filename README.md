@@ -1,6 +1,6 @@
 # Helm HMI Platform
 
-面向工控机本地一体部署的 Node.js HMI/PLC 平台骨架。
+面向工控机本地一体部署的 Node.js HMI/PLC 平台骨架。这个版本暂时不更新了，正在做一版安卓程序版的，直接使用安卓平板来替代Proface屏，ipad版也在路上了
 
 目标：
 
